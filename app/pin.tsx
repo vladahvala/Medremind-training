@@ -11,7 +11,7 @@ export default function PinScreen() {
     if (pin === '1234') {
       Alert.alert('Success', 'PIN accepted!');
       // Navigate to your protected screen
-      router.replace('/'); // або будь-яка сторінка
+      router.replace('/home'); // або будь-яка сторінка
     } else {
       Alert.alert('Error', 'Incorrect PIN');
     }
