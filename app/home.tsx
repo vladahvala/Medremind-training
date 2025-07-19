@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Link, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -8,6 +9,37 @@ import Svg, { Circle } from "react-native-svg";
 const {width} = Dimensions.get('window');
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const QUICK_ACTIONS = [
+    {
+        icon: 'add-circle-outline' as const,
+        label: 'Add \nMedication',
+        route: '/medications/add' as const,
+        color: "#2E7D32",
+        gradient: ["#4CAF50", "#2E7D32"] as [string, string],
+    },
+    {
+        icon: "calendar-outline" as const,
+        label: "Calendar\nView",
+        route: "/calendar" as const,
+        color: "#1976D2",
+        gradient: ["#2196F3", "#1976D2"] as [string, string],
+      },
+      {
+        icon: "time-outline" as const,
+        label: "History\nLog",
+        route: "/history" as const,
+        color: "#C2185B",
+        gradient: ["#E91E63", "#C2185B"] as [string, string],
+      },
+      {
+        icon: "medical-outline" as const,
+        label: "Refill\nTracker",
+        route: "/refills" as const,
+        color: "#E64A19",
+        gradient: ["#FF5722", "#E64A19"] as [string, string],
+      },
+];
 
 interface CircularProgressProps{
     progress: number;
@@ -39,18 +71,20 @@ function CircularProgress({
     outputRange: [circumference, 0],
    });
 
+   const router = useRouter();
+
    return (
-    <View>
-        <View>
-            <Text>{Math.round(progress)}%</Text>
-            <Text>{completeDoses} of {totalDoses} doeses</Text>
+    <View style={styles.progressContainer}>
+        <View style={styles.progressTextContainer}>
+            <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
+            <Text style={styles.progressLabel}>{completeDoses} of {totalDoses} doeses</Text>
         </View>
-        <Svg width={size} height={size}>
+        <Svg width={size} height={size} style={styles.progressRing}>
             <Circle
             cx={size/2}
             cy={size/2}
             r={radius}
-            stroke="rgba(255, 255, 55, 0.2)"
+            stroke="rgba(255, 255, 255, 0.2)"
             strokeWidth={strokeWidth}
             fill="none"
             />
@@ -81,8 +115,14 @@ export default function HomeScreen() {
                         <View style={{flex: 1}}>
                             <Text style={styles.greeting}>Daily Progress</Text>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity style={styles.notificationButton}>
                             <Ionicons name="notifications-outline" size={24} color="white" />
+                            {   <View style={styles.notificationBadge}>
+                                    <Text style={styles.notificationCount}>
+                                        1
+                                    </Text>
+                                </View>
+                            }
                         </TouchableOpacity>
                     </View>
                     {/* circular progress*/}
@@ -93,6 +133,28 @@ export default function HomeScreen() {
                     />
                 </View>
             </LinearGradient>
+            <View style={styles.content} >
+                <View style={styles.quickActionsContainer}>
+                    <Text style={styles.sectionTitle}> Quick Actions </Text>
+                    <View style={styles.quickActionsGrid}>
+                           {QUICK_ACTIONS.map((action) => (
+                            <Link href={action.route} key={action.label} asChild>
+                                <TouchableOpacity style={styles.actionButton}>
+                                    <LinearGradient colors={action.gradient} style={styles.actionGradient}>
+                                        <View style={styles.actionContent}>
+                                            <View style={styles.actionIcon}>
+                                                <Ionicons name={action.icon} size={24} color="white" />
+                                            </View>
+                                            
+                                            <Text style={styles.actionLabel}>{action.label}</Text>
+                                        </View>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </Link>
+                        ))} 
+                    </View>
+                </View>
+            </View>
         </ScrollView>
     )
 }
@@ -158,7 +220,7 @@ const styles = StyleSheet.create({
     },
     progressContainer: {
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         marginVertical: 10,
     },
     progressTextContainer: {
@@ -169,7 +231,12 @@ const styles = StyleSheet.create({
     },
     progressPercentage: {
         fontSize: 36,
-        backgroundColor: 'white',
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    progressLabel: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
         fontWeight: 'bold',
     },
     progressDetails: {
@@ -177,4 +244,54 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: 'bold',
     },
+
+    progressRing: {
+        transform: [{ rotate: "-90deg"}],
+    },
+
+    quickActionsContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 25,
+    },
+    quickActionsGrid: {
+        flexDirection: "row",
+        flexWrap: 'wrap',
+        gap: 12,
+        marginTop:15,
+    },
+    actionButton:{
+        width:(width - 52) / 2,
+        height: 110,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    actionGradient: {
+        flex: 1,
+        padding: 15,
+    },
+    actionContent: {
+        flex: 1,
+        justifyContent: "space-between",
+      },
+    actionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionLabel: {
+        fontSize: 14,
+        color: 'white',
+        fontWeight: '600',
+        marginTop: 8,
+    },
+
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1a1a1a',
+        marginBottom: 5,
+    }
 })
