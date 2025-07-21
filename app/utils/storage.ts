@@ -11,7 +11,7 @@ export interface Medication {
     startDate: string;
     duration: string;
     color: string;
-    reminderEnable: boolean;
+    reminderEnabled: boolean;
     currentSupply: number;
     totalSupply: number;
     refillAt: number;

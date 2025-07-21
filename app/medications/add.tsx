@@ -4,17 +4,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    Alert,
-    Dimensions,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
+import {
+  scheduleMedicationReminder
+} from "../utils/notifications";
+import { addMedication } from "../utils/storage";
 
 const { width } = Dimensions.get("window");
 
