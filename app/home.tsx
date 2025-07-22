@@ -1,10 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Animated, AppState, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Svg, { Circle } from "react-native-svg";
+import {
+    registerForPushNotificationsAsync,
+    scheduleMedicationReminder,
+} from "./utils/notifications";
+import {
+    DoseHistory,
+    getMedication,
+    getTodaysDoses,
+    Medication,
+    recordDose
+} from "./utils/storage";
 
 const {width} = Dimensions.get('window');
 
@@ -71,8 +83,6 @@ function CircularProgress({
     outputRange: [circumference, 0],
    });
 
-   const router = useRouter();
-
    return (
     <View style={styles.progressContainer}>
         <View style={styles.progressTextContainer}>
@@ -106,6 +116,123 @@ function CircularProgress({
 }
 
 export default function HomeScreen() {
+    const router = useRouter();
+    const [showNotifications, setShowNotifications] = useState(false);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
+  const [completedDoses, setCompletedDoses] = useState(0);
+  const [doseHistory, setDoseHistory] = useState<DoseHistory[]>([]);
+
+    const loadMedications = useCallback(async () => {
+        try {
+          const [allMedications, todaysDoses] = await Promise.all([
+            getMedication(),
+            getTodaysDoses(),
+          ]);
+    
+          setDoseHistory(todaysDoses);
+          setMedications(allMedications);
+    
+          // Filter medications for today
+          const today = new Date();
+          const todayMeds = allMedications.filter((med) => {
+            const startDate = new Date(med.startDate);
+            const durationDays = parseInt(med.duration.split(" ")[0]);
+    
+            // For ongoing medications or if within duration
+            if (
+              durationDays === -1 ||
+              (today >= startDate &&
+                today <=
+                  new Date(
+                    startDate.getTime() + durationDays * 24 * 60 * 60 * 1000
+                  ))
+            ) {
+              return true;
+            }
+            return false;
+          });
+    
+          setTodaysMedications(todayMeds);
+    
+          // Calculate completed doses
+          const completed = todaysDoses.filter((dose) => dose.taken).length;
+          setCompletedDoses(completed);
+        } catch (error) {
+          console.error("Error loading medications:", error);
+        }
+      }, []);
+    
+      const setupNotifications = async () => {
+        try {
+          const token = await registerForPushNotificationsAsync();
+          if (!token) {
+            console.log("Failed to get push notification token");
+            return;
+          }
+    
+          // Schedule reminders for all medications
+          const medications = await getMedication();
+          for (const medication of medications) {
+            if (medication.reminderEnabled) {
+              await scheduleMedicationReminder(medication);
+            }
+          }
+        } catch (error) {
+          console.error("Error setting up notifications:", error);
+        }
+      };
+
+       // Use useEffect for initial load
+  useEffect(() => {
+    loadMedications();
+    setupNotifications();
+
+    // Handle app state changes for notifications
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        loadMedications();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Use useFocusEffect for subsequent updates
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = () => {
+        // Cleanup if needed
+      };
+
+      loadMedications();
+      return () => unsubscribe();
+    }, [loadMedications])
+  );
+
+  const handleTakeDose = async (medication: Medication) => {
+    try {
+      await recordDose(medication.id, true, new Date().toISOString());
+      await loadMedications(); // Reload data after recording dose
+    } catch (error) {
+      console.error("Error recording dose:", error);
+      Alert.alert("Error", "Failed to record dose. Please try again.");
+    }
+  };
+
+  const isDoseTaken = (medicationId: string) => {
+    return doseHistory.some(
+      (dose) => dose.medicationId === medicationId && dose.taken
+    );
+  };
+
+  const progress =
+    todaysMedications.length > 0
+      ? completedDoses / (todaysMedications.length * 2)
+      : 0;
+
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -127,9 +254,9 @@ export default function HomeScreen() {
                     </View>
                     {/* circular progress*/}
                     <CircularProgress
-                        progress={50}
-                        totalDoses={10}
-                        completeDoses={5}
+                        progress={progress}
+                        totalDoses={todaysMedications.length * 2}
+                        completeDoses={completedDoses}
                     />
                 </View>
             </LinearGradient>
@@ -166,7 +293,7 @@ export default function HomeScreen() {
                     </Link>
                 </View>
 
-                {true ? (
+                {todaysMedications.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="medical-outline" size={48} color="#ccc"/>
                         <Text style={styles.emptyStateText}>No Medication Scheduled for today</Text>
@@ -177,36 +304,42 @@ export default function HomeScreen() {
                         </Link>
                     </View>
                 ) : (
-                    [].map((medications) =>{
-                        //const taken = 
+                    todaysMedications.map((medication) =>{
+                        const taken = isDoseTaken(medication.id)
 
                         return(
                             <View style={styles.doseCard}>
                                  <View style={[
                                     styles.doseBadge,
-                                    // {
-                                    //     backgroundColor: medications.color
-                                    // }
+                                    {
+                                        backgroundColor: `${medication.color}15`
+                                    }
                                     ]}>
                                     <Ionicons name="medical" size={24}  />
                                  </View>
                                  <View style={styles.doseInfo}>
                                     <View>
-                                        <Text style={styles.medicineName}>name</Text>
-                                        <Text style={styles.dosageInfo}>dosage</Text>
+                                        <Text style={styles.medicineName}>{medication.name}</Text>
+                                        <Text style={styles.dosageInfo}>{medication.dosage}</Text>
                                     </View>
                                     <View style={styles.doseTime}>
                                         <Ionicons name="time-outline" size={16} color="#ccc" />
-                                        <Text style={styles.doseTime}>time</Text>
+                                        <Text style={styles.doseTime}>{medication.times[0]}</Text>
                                     </View>
                                  </View>
-                                 {false ? (
+                                 {taken ? (
                                         <View style={styles.takeDoseButton}>
                                             <Ionicons name="checkmark-circle-outline" size={24}/>
                                             <Text style={styles.takeDoseText}>Taken</Text>
                                         </View>
                                  ) : (
-                                        <TouchableOpacity style={styles.takeDoseButton}>
+                                        <TouchableOpacity 
+                                        style={[
+                                            styles.takeDoseButton,
+                                            { backgroundColor: medication.color },
+                                          ]}
+                                          onPress={() => handleTakeDose(medication)}
+                                        >
                                             <Text style={styles.takeDoseText}>Take</Text>
                                         </TouchableOpacity> 
                                  )}

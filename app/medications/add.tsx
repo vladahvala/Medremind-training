@@ -128,12 +128,15 @@ export default function addMedicationScreen() {
                         styles.optionCard,
                         selectedDuration === dur.label && styles.selectedOptionCard,
                     ]}
-                    //onPress={}
+                    onPress={() => {
+                      setSelectedDuration(dur.label);
+                      setForm({ ...form, duration: dur.label });
+                    }}
                     >
                         <Text
                           style={[
                             styles.durationNumber,
-                            selectedDuration === dur.label && styles.selectedOptionNumber,
+                            selectedDuration === dur.label && styles.selectedDurationNumber,
                         ]}
                         >{dur.value > 0 ? dur.value : '∞'}</Text>
                             
@@ -435,6 +438,7 @@ export default function addMedicationScreen() {
                         styles.saveButton,
                         isSubmitting  && styles.saveButtonDisabled,
                     ]}
+                    onPress={()=>handleSave()}
                     >
                         <LinearGradient
                         colors={["#1a8e2d", "#146922"]}
@@ -446,7 +450,6 @@ export default function addMedicationScreen() {
                         <Text 
                         style={styles.saveButtonText}
                         >
-                            Add Medication
                             {isSubmitting ? "Adding..." : "Add Medication"}
                         </Text>
                         </LinearGradient>
@@ -740,7 +743,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginBottom: 12,
   },
-  saveButtonDisavled: {
+  saveButtonDisabled: {
     opacity: 0.7,
   },
   saveButtonGradient: {
